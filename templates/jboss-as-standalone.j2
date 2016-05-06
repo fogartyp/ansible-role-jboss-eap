@@ -1,0 +1,11 @@
+[Unit]
+Description=Jboss Application Server
+After=syslog.target network.target
+
+[Service]
+Type=forking
+ExecStart={{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/init.d/jboss-as-standalone.sh start
+ExecStop={{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/init.d/jboss-as-standalone.sh stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,114 @@
+---
+# tasks file for ansible-role-jboss-eap
+  - name: Check for correct OS family & min version
+    assert:
+      that: "ansible_os_family == '{{ os_family_supported }}'"
+      that: "ansible_distribution_version >= '{{ os_min_supported_version }}'"
+    tags:
+     - oscheck
+
+  - name: Install EPEL Repo
+    yum: name={{ epel_rpm }} state=installed
+    when: configure_epel_repo
+    tags:
+     - epelrepo
+
+  - name: Install packages required by JBoss
+    yum: name={{ item }} state=installed
+    with_items: jboss_packages
+    when: install_os_packages
+    tags: os_packages
+
+  - name: Add group "jboss"
+    group: name={{ jboss_group }}
+
+  - name: User | Add JBoss user
+    user: name={{ item.username }}  group={{ jboss_group }} uid={{ item.uid }} home={{ item.home }} generate_ssh_key=yes append=yes state=present password={{ item.passwd }}
+    with_items: jboss_users
+    tags:
+     - user
+
+  - name: Stop JBoss Systemd service
+    service: name=jboss-as-standalone state=stopped
+
+  - name: import secret variable file
+    include_vars: "secret_key.yml"
+    no_log: true
+
+  - name: copy deployment private key
+    copy:
+      content: "{{private_key_content}}"
+      dest: "/tmp/scp.pem"
+      owner: "{{ jboss_user }}"
+      mode: 0600
+    no_log: true
+
+  - name: Check if installfiles exist
+    stat: path=/tmp/{{ jboss_bin }}
+    register: jboss_bin_check
+
+  - debug: var=jboss_bin_check
+
+  - name: Transfer JBoss installfiles to server (scp)
+    shell: scp -i /tmp/scp.pem -o StrictHostKeyChecking=no {{ scpusr }}@{{ scpip }}:{{ item }}  /tmp/{{ item }}
+    with_items:
+      - "{{ jboss_bin }}"
+    become: yes
+    become_user: "root"
+    when: not jboss_bin_check.stat.exists
+
+  - name: Extract files to stage-area
+    unarchive: src=/tmp/{{ item }}  dest={{ jboss_dir }} owner={{ jboss_user }} group={{ jboss_user }} mode=0755 copy=no
+    with_items:
+      - "{{ jboss_bin }}"
+    sudo: yes
+    sudo_user: "root"
+#    when: not jboss_bin_check.stat.exists
+
+  - name: Update standalone.xml to 
+    replace: 
+      dest: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/standalone/configuration/standalone.xml"
+      regexp: "jboss.bind.address:127.0.0.1"
+      replace: "jboss.bind.address:0.0.0.0"
+
+  - name: Update standalone.xml to
+    replace:
+      dest: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/standalone/configuration/standalone.xml"
+      regexp: "jboss.bind.address.management:127.0.0.1"
+      replace: "jboss.bind.address.management:0.0.0.0"
+
+  - name: Add Mgmt user to domain
+    shell: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/add-user.sh {{ jboss_user }} {{ jboss_mgmt_pass }}"
+    become: yes
+    become_user: "{{ jboss_user }}"
+
+  - name: Create Systemd startup scripts
+    template: src=jboss-as-standalone.j2 dest="/etc/systemd/system/jboss-as-standalone.service"
+    become: yes
+    become_user: "root"
+
+  - name: Link the jboss-as installation directory
+    file: src={{ jboss_dir }}/jboss-eap-{{ jboss_version }} dest={{ jboss_dir }}/jboss-as owner={{ jboss_user }} group={{ jboss_user }} state=link force=yes
+
+  - name: Create etc JBoss directory
+    file: path={{ jboss_etc }} state=directory owner={{ jboss_user }} group={{ jboss_user }} mode=0755
+
+  - name: Link the jboss-as.conf file to /etc/jboss-as
+    file: src={{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/init.d/jboss-as.conf dest={{ jboss_etc }}/jboss-as.conf owner={{ jboss_user }} group={{ jboss_user }} state=link force=yes
+
+  - name: Update jboss-as.conf user
+    lineinfile: dest={{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/init.d/jboss-as.conf regexp=^JBOSS_USER= line=JBOSS_USER={{ jboss_user }}
+
+  - name: Create configuration JBoss directory
+    file: path={{ jboss_dir }}/jboss-eap-{{ jboss_version }}/standalone/configuration state=directory owner={{ jboss_user }} group={{ jboss_user }} mode=0755
+
+  - name: Copying firewalld standalone.xml configuration file
+    template: src=jboss-as-standalone.xml dest=/etc/firewalld/services/
+
+#  - name: Execute firewalld commands to allow secure JBoss access
+#    shell: "{{ item }}"
+#    with_items:
+#      - "{{ jboss_firewalld }}"
+      
+  - name: Start & enable JBoss Systemd service
+    service: name=jboss-as-standalone enabled=yes state=restarted

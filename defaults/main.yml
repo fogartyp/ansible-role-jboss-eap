@@ -1,0 +1,27 @@
+---
+# defaults file for ansible-role-jboss-eap
+  master_node: true
+  os_family_supported: "RedHat"
+  os_min_supported_version: "6.4"
+  install_os_packages: true
+
+  jboss_user: jboss
+  jboss_group: jboss
+  jboss_users:
+   - { username: "{{ jboss_user }}", uid: 54322, home: "/home/jboss", primgroup: "{{ jboss_group }}", passwd: "$6$rounds=656000$NuR3dzMijk5yMD67$1vDiZTGoQda1MiKeOxDFp1xv4PpCnL60ThrpoalKniu.uRAtTAiHWLWXACrS26hCc/ujm5zYwhkgmZHfdEBZX0" }
+
+  jboss_version: "6.3"
+  jboss_dir: "/usr/share"
+  jboss_etc: "/etc/jboss-as"
+  jboss_bin: "jboss-eap-6.3.0.zip"
+
+  epel_rpm: "http://mirror.pnl.gov/epel/7/x86_64/e/epel-release-7-6.noarch.rpm"
+  configure_epel_repo: true
+  jboss_packages:
+    - java-1.6.0-openjdk-devel
+  jboss_firewalld:
+    - "firewall-cmd --zone=public --add-service=jboss-as-standalone"
+    - "firewall-cmd --permanent --zone=public --add-service=jboss-as-standalone"
+    - "firewall-cmd --zone=public --list-services"
+    - "firewall-cmd --permanent --zone=public --list-services"
+
