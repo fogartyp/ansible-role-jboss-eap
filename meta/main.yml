@@ -1,8 +1,8 @@
 ---
 galaxy_info:
   author: Patrick Fogarty
-  description: 
-  company: 
+  description: Jboss EAP 6.x deploy
+  company: NA
   license: license (BSD)
   min_ansible_version: 1.2
   platforms:
