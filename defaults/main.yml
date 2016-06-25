@@ -15,7 +15,7 @@
   jboss_etc: "/etc/jboss-as"
   jboss_bin: "jboss-eap-6.3.0.zip"
 
-  epel_rpm: "http://mirror.pnl.gov/epel/7/x86_64/e/epel-release-7-6.noarch.rpm"
+  epel_rpm: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm"
   configure_epel_repo: true
   jboss_packages:
     - java-1.6.0-openjdk-devel
