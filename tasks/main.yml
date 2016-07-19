@@ -15,7 +15,7 @@
 
   - name: Install packages required by JBoss
     yum: name={{ item }} state=installed
-    with_items: jboss_packages
+    with_items: "{{ jboss_packages }}"
     when: install_os_packages
     tags: os_packages
 
@@ -24,12 +24,13 @@
 
   - name: User | Add JBoss user
     user: name={{ item.username }}  group={{ jboss_group }} uid={{ item.uid }} home={{ item.home }} generate_ssh_key=yes append=yes state=present password={{ item.passwd }}
-    with_items: jboss_users
+    with_items: "{{ jboss_users }}"
     tags:
      - user
 
   - name: Stop JBoss Systemd service
-    service: name=jboss-as-standalone state=stopped
+    service: name="{{ jboss_service }}" state=stopped
+    ignore_errors: true
 
   - name: import secret variable file
     include_vars: "secret_key.yml"
@@ -57,21 +58,39 @@
     become_user: "root"
     when: not jboss_bin_check.stat.exists
 
-  - name: Extract files to stage-area
-    unarchive: src=/tmp/{{ item }}  dest={{ jboss_dir }} owner={{ jboss_user }} group={{ jboss_user }} mode=0755 copy=no
-    with_items:
-      - "{{ jboss_bin }}"
-    sudo: yes
-    sudo_user: "root"
-#    when: not jboss_bin_check.stat.exists
+#   - name: Extract files to stage-area
+#     unarchive: src="/tmp/{{ item }}"  dest="{{ jboss_dir }}" owner="{{ jboss_user }}" group="{{ jboss_user }}"
+#     with_items:
+#       - "{{ jboss_bin }}"
+#     become: yes
+#     become_user: "root"
+#     become_method: sudo
+# #    when: not jboss_bin_check.stat.exists
 
-  - name: Update standalone.xml to 
-    replace: 
+  # Ansible 2.1 unarchive bug, using shell unzip intill fixed
+  - name: Extract files to stage area using shell
+    shell: "unzip -o /tmp/{{ item }} -d {{ jboss_dir }} & chown -R {{ jboss_user }}:{{ jboss_user }} {{ jboss_dir }}/jboss-eap-{{ jboss_version }}"
+    with_items:
+       - "{{ jboss_bin }}"
+    become: yes
+    become_user: "root"
+    become_method: sudo
+
+  - name: Fix perms using shell
+    shell: "chown -R {{ jboss_user }}:{{ jboss_user }} {{ jboss_dir }}/jboss-eap-{{ jboss_version }}"
+    with_items:
+       - "{{ jboss_bin }}"
+    become: yes
+    become_user: "root"
+    become_method: sudo
+
+  - name: Update public interface standalone.xml to
+    replace:
       dest: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/standalone/configuration/standalone.xml"
       regexp: "jboss.bind.address:127.0.0.1"
       replace: "jboss.bind.address:0.0.0.0"
 
-  - name: Update standalone.xml to
+  - name: Update management interface standalone.xml to
     replace:
       dest: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/standalone/configuration/standalone.xml"
       regexp: "jboss.bind.address.management:127.0.0.1"
@@ -81,6 +100,7 @@
     shell: "{{ jboss_dir }}/jboss-eap-{{ jboss_version }}/bin/add-user.sh {{ jboss_user }} {{ jboss_mgmt_pass }}"
     become: yes
     become_user: "{{ jboss_user }}"
+    become_method: sudo
 
   - name: Create Systemd startup scripts
     template: src=jboss-as-standalone.j2 dest="/etc/systemd/system/jboss-as-standalone.service"
@@ -109,6 +129,6 @@
 #    shell: "{{ item }}"
 #    with_items:
 #      - "{{ jboss_firewalld }}"
-      
+
   - name: Start & enable JBoss Systemd service
     service: name=jboss-as-standalone enabled=yes state=restarted
