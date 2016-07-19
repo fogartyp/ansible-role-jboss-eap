@@ -14,7 +14,8 @@
   jboss_dir: "/usr/share"
   jboss_etc: "/etc/jboss-as"
   jboss_bin: "jboss-eap-6.3.0.zip"
-
+  jboss_service: "jboss-as-standalone"
+  
   epel_rpm: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm"
   configure_epel_repo: true
   jboss_packages:
@@ -24,4 +25,3 @@
     - "firewall-cmd --permanent --zone=public --add-service=jboss-as-standalone"
     - "firewall-cmd --zone=public --list-services"
     - "firewall-cmd --permanent --zone=public --list-services"
-
