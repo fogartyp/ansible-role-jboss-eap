@@ -29,7 +29,7 @@
      - user
 
   - name: Stop JBoss Systemd service
-    service: name="{{ jboss_service }}" state=stopped
+    service: name="{{ app_daemon_service }}" state=stopped
     ignore_errors: true
 
   - name: import secret variable file
@@ -69,7 +69,7 @@
 
   # Ansible 2.1 unarchive bug, using shell unzip intill fixed
   - name: Extract files to stage area using shell
-    shell: "unzip -o /tmp/{{ item }} -d {{ jboss_dir }} & chown -R {{ jboss_user }}:{{ jboss_user }} {{ jboss_dir }}/jboss-eap-{{ jboss_version }}"
+    shell: "unzip -o /tmp/{{ item }} -d {{ jboss_dir }}"
     with_items:
        - "{{ jboss_bin }}"
     become: yes
@@ -78,8 +78,6 @@
 
   - name: Fix perms using shell
     shell: "chown -R {{ jboss_user }}:{{ jboss_user }} {{ jboss_dir }}/jboss-eap-{{ jboss_version }}"
-    with_items:
-       - "{{ jboss_bin }}"
     become: yes
     become_user: "root"
     become_method: sudo

@@ -14,7 +14,7 @@
   jboss_dir: "/usr/share"
   jboss_etc: "/etc/jboss-as"
   jboss_bin: "jboss-eap-6.3.0.zip"
-  jboss_service: "jboss-as-standalone"
+  app_daemon_service: "jboss-as-standalone"
   
   epel_rpm: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm"
   configure_epel_repo: true
